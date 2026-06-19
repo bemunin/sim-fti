@@ -1,0 +1,409 @@
+#usda 1.0
+(
+    customLayerData = {
+        dictionary cameraSettings = {
+            dictionary Front = {
+                double3 position = (5, 0, 0)
+                double radius = 5
+            }
+            dictionary Perspective = {
+                double3 position = (1.7437012925471986, 0.34634331318531547, 1.010343204071391)
+                double3 target = (-0.21889311211011608, -0.35103776079368215, 0.41770367065198666)
+            }
+            dictionary Right = {
+                double3 position = (0, -5, 0)
+                double radius = 5
+            }
+            dictionary Top = {
+                double3 position = (0, 0, 5)
+                double radius = 5
+            }
+            string boundCamera = "/OmniverseKit_Persp"
+        }
+        dictionary omni_layer = {
+            string authoring_layer = "./franka_controller_scene.usda"
+            dictionary locked = {
+            }
+            dictionary muteness = {
+            }
+        }
+        dictionary physicsSettings = {
+            int "/persistent/simulation/minFrameRate" = 60
+        }
+        dictionary renderSettings = {
+            double "rtx:post:lensFlares:flareScale" = 0.075
+            float3 "rtx:sceneDb:ambientLightColor" = (0, 0, 0)
+        }
+    }
+    defaultPrim = "World"
+    endTimeCode = 1000000
+    metersPerUnit = 1
+    startTimeCode = 0
+    timeCodesPerSecond = 60
+    upAxis = "Z"
+)
+
+def Xform "World"
+{
+    def Scope "Looks"
+    {
+        def Material "Carpet_Berber_Gray"
+        {
+            token outputs:mdl:displacement.connect = </World/Looks/Carpet_Berber_Gray/Shader.outputs:out>
+            token outputs:mdl:surface.connect = </World/Looks/Carpet_Berber_Gray/Shader.outputs:out>
+            token outputs:mdl:volume.connect = </World/Looks/Carpet_Berber_Gray/Shader.outputs:out>
+
+            def Shader "Shader"
+            {
+                uniform token info:implementationSource = "sourceAsset"
+                uniform asset info:mdl:sourceAsset = @../../../isaacsim_assets/Materials/2023_1/Base/Carpet/Carpet_Berber_Gray.mdl@
+                uniform token info:mdl:sourceAsset:subIdentifier = "Carpet_Berber_Gray"
+                float2 inputs:texture_scale = (50, 50)
+                token outputs:out (
+                    renderType = "material"
+                )
+            }
+        }
+    }
+
+    def Xform "franka" (
+        prepend references = @/home/bemunin/isaacsim_assets/Assets/Isaac/5.1/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd@
+        variants = {
+            string Gripper = "AlternateFinger"
+            string Mesh = "Performance"
+        }
+    )
+    {
+        string isaac:namespace (
+            displayName = "Namespace"
+            doc = "Namespace of the prim in Isaac Sim"
+        )
+        token visibility = "inherited"
+        quatd xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+        over "panda_link0"
+        {
+            over "panda_joint1"
+            {
+                float state:angular:physics:position = 0
+                float state:angular:physics:velocity = 0
+            }
+        }
+
+        over "panda_link1"
+        {
+            over "panda_joint2"
+            {
+                float state:angular:physics:position = 0
+                float state:angular:physics:velocity = 0
+            }
+        }
+
+        over "panda_link2"
+        {
+            over "panda_joint3"
+            {
+                float state:angular:physics:position = 0
+                float state:angular:physics:velocity = 0
+            }
+        }
+
+        over "panda_link3"
+        {
+            over "panda_joint4"
+            {
+                float state:angular:physics:position = 0
+                float state:angular:physics:velocity = 0
+            }
+        }
+
+        over "panda_link4"
+        {
+            over "panda_joint5"
+            {
+                float state:angular:physics:position = 0
+                float state:angular:physics:velocity = 0
+            }
+        }
+
+        over "panda_link5"
+        {
+            over "panda_joint6"
+            {
+                float state:angular:physics:position = 0
+                float state:angular:physics:velocity = 0
+            }
+        }
+
+        over "panda_link6"
+        {
+            over "panda_joint7"
+            {
+                float state:angular:physics:position = 0
+                float state:angular:physics:velocity = 0
+            }
+        }
+
+        over "panda_link7"
+        {
+        }
+
+        over "panda_hand"
+        {
+            over "panda_finger_joint1"
+            {
+                float state:linear:physics:position = 0
+                float state:linear:physics:velocity = 0
+            }
+
+            over "panda_finger_joint2"
+            {
+                float state:linear:physics:position = 0
+                float state:linear:physics:velocity = 0
+            }
+        }
+
+        over "panda_leftfinger"
+        {
+        }
+
+        over "panda_rightfinger" (
+            prepend apiSchemas = ["PhysxRigidBodyAPI"]
+        )
+        {
+            float physxRigidBody:sleepThreshold = 0
+        }
+    }
+
+    def Cube "Cube" (
+        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI"]
+    )
+    {
+        float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+        bool physics:collisionEnabled = 1
+        bool physics:kinematicEnabled = 0
+        bool physics:rigidBodyEnabled = 1
+        double size = 1
+        quatd xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:scale = (0.05000000074505806, 0.05000000074505806, 0.05000000074505806)
+        double3 xformOp:translate = (0.4383047819137573, 0.06226779520511627, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+    }
+}
+
+def Xform "Environment"
+{
+    int ground:size = 1400
+    string ground:type = "On"
+    quatd xformOp:orient = (1, 0, 0, 0)
+    double3 xformOp:scale = (1, 1, 1)
+    double3 xformOp:translate = (0, 0, 0)
+    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+    def DomeLight "Sky" (
+        prepend apiSchemas = ["ShapingAPI"]
+    )
+    {
+        float inputs:colorTemperature = 6250
+        bool inputs:enableColorTemperature = 1
+        float inputs:exposure = 9
+        float inputs:intensity = 1
+        float inputs:shaping:cone:angle = 180
+        float inputs:shaping:cone:softness
+        float inputs:shaping:focus
+        color3f inputs:shaping:focusTint
+        asset inputs:shaping:ies:file
+        asset inputs:texture:file = @@
+        token inputs:texture:format = "latlong"
+        token visibility = "inherited"
+        quatd xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:rotateXYZ = (0, 0, 0)
+        double3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, 305)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def DistantLight "DistantLight" (
+        prepend apiSchemas = ["ShapingAPI"]
+    )
+    {
+        float inputs:angle = 2.5
+        float inputs:colorTemperature = 7250
+        bool inputs:enableColorTemperature = 1
+        float inputs:exposure = 10
+        float inputs:intensity = 1
+        float inputs:shaping:cone:angle = 180
+        float inputs:shaping:cone:softness
+        float inputs:shaping:focus
+        color3f inputs:shaping:focusTint
+        asset inputs:shaping:ies:file
+        token visibility = "inherited"
+        quatd xformOp:orient = (0.6532814824381883, 0.2705980500730985, 0.27059805007309845, 0.6532814824381882)
+        double3 xformOp:rotateXYZ = (-15, 0, 0)
+        double3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, 305)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Scope "Looks"
+    {
+        def Material "Grid"
+        {
+            token outputs:mdl:displacement.connect = </Environment/Looks/Grid/Shader.outputs:out>
+            token outputs:mdl:surface.connect = </Environment/Looks/Grid/Shader.outputs:out>
+            token outputs:mdl:volume.connect = </Environment/Looks/Grid/Shader.outputs:out>
+
+            def Shader "Shader"
+            {
+                uniform token info:implementationSource = "sourceAsset"
+                uniform asset info:mdl:sourceAsset = @OmniPBR.mdl@
+                uniform token info:mdl:sourceAsset:subIdentifier = "OmniPBR"
+                float inputs:albedo_add = 0
+                float inputs:albedo_brightness = 0.52
+                float inputs:albedo_desaturation = 1
+                asset inputs:diffuse_texture = @../../../isaacsim/extscache/omni.kit.stage_templates-2.0.0 69cbf6ad/data/ov_uv_grids_basecolor_1024.png@ (
+                    colorSpace = "sRGB"
+                    customData = {
+                        asset default = @@
+                    }
+                )
+                bool inputs:project_uvw = 0
+                float inputs:reflection_roughness_constant = 0.333
+                float inputs:texture_rotate = 0 (
+                    customData = {
+                        float default = 0
+                    }
+                )
+                float2 inputs:texture_scale = (0.5, 0.5) (
+                    customData = {
+                        float2 default = (1, 1)
+                    }
+                )
+                float2 inputs:texture_translate = (0, 0) (
+                    customData = {
+                        float2 default = (0, 0)
+                    }
+                )
+                bool inputs:world_or_object = 0 (
+                    customData = {
+                        bool default = 0
+                    }
+                )
+                token outputs:out (
+                    renderType = "material"
+                )
+            }
+        }
+    }
+
+    def Mesh "ground" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        float3[] extent = [(-50, -50, 0), (50, 50, 0)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 3, 2]
+        rel material:binding = </World/Looks/Carpet_Berber_Gray> (
+            bindMaterialAs = "weakerThanDescendants"
+        )
+        normal3f[] normals = [(0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1)] (
+            interpolation = "faceVarying"
+        )
+        point3f[] points = [(-50, -50, 0), (50, -50, 0), (-50, 50, 0), (50, 50, 0)]
+        texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1), (0, 1)] (
+            interpolation = "faceVarying"
+        )
+        uniform token subdivisionScheme = "none"
+        quatd xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:rotateXYZ = (0, 0, 0)
+        double3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
+    }
+
+    def Plane "groundCollider" (
+        prepend apiSchemas = ["PhysicsCollisionAPI"]
+    )
+    {
+        uniform token axis = "Z"
+        uniform token purpose = "guide"
+    }
+}
+
+def "Render" (
+    hide_in_stage_window = true
+    no_delete = true
+)
+{
+    def "OmniverseKit"
+    {
+        def "HydraTextures" (
+            hide_in_stage_window = true
+            no_delete = true
+        )
+        {
+            def RenderProduct "omni_kit_widget_viewport_ViewportTexture_0" (
+                prepend apiSchemas = ["OmniRtxSettingsCommonAdvancedAPI_1", "OmniRtxSettingsRtAdvancedAPI_1", "OmniRtxSettingsPtAdvancedAPI_1", "OmniRtxPostColorGradingAPI_1", "OmniRtxPostChromaticAberrationAPI_1", "OmniRtxPostBloomPhysicalAPI_1", "OmniRtxPostMatteObjectAPI_1", "OmniRtxPostCompositingAPI_1", "OmniRtxPostDofAPI_1", "OmniRtxPostMotionBlurAPI_1", "OmniRtxPostTvNoiseAPI_1", "OmniRtxPostTonemapIrayReinhardAPI_1", "OmniRtxPostDebugSettingsAPI_1", "OmniRtxDebugSettingsAPI_1"]
+                hide_in_stage_window = true
+                no_delete = true
+            )
+            {
+                rel camera = </OmniverseKit_Persp>
+                token omni:rtx:background:source:texture:textureMode = "repeatMirrored"
+                token omni:rtx:background:source:type = "domeLight"
+                bool omni:rtx:material:db:nonVisualMaterialCSV:enabled = 0
+                float omni:rtx:post:bloom:scale = 0.075
+                token omni:rtx:post:dlss:execMode = "performance"
+                bool omni:rtx:post:registeredCompositing:invertColorCorrection = 1
+                bool omni:rtx:post:registeredCompositing:invertToneMap = 1
+                bool omni:rtx:pt:lightcache:cached:dontResolveConflicts = 1
+                int omni:rtx:pt:maxSamplesPerLaunch = 2073600
+                int omni:rtx:pt:mgpu:maxPixelsPerRegionExponent = 12
+                bool omni:rtx:raytracing:picking:occluded:enabled = 1
+                bool omni:rtx:rt:demoire = 0
+                bool omni:rtx:rt:ecoMode:enabled
+                bool omni:rtx:rt:lightcache:spatialCache:dontResolveConflicts = 1
+                uint omni:rtx:viewTile:limit = 4294967295
+                rel orderedVars = </Render/Vars/LdrColor>
+                custom bool overrideClipRange = 0
+                uniform int2 resolution = (1280, 720)
+            }
+        }
+    }
+
+    def RenderSettings "OmniverseGlobalRenderSettings" (
+        prepend apiSchemas = ["OmniRtxSettingsGlobalRtAdvancedAPI_1", "OmniRtxSettingsGlobalPtAdvancedAPI_1"]
+        no_delete = true
+    )
+    {
+        rel products = </Render/OmniverseKit/HydraTextures/omni_kit_widget_viewport_ViewportTexture_0>
+    }
+
+    def "Vars"
+    {
+        def RenderVar "LdrColor" (
+            hide_in_stage_window = true
+            no_delete = true
+        )
+        {
+            uniform string sourceName = "LdrColor"
+        }
+    }
+}
+
+def PhysicsScene "physicsScene" (
+    prepend apiSchemas = ["PhysxSceneAPI"]
+)
+{
+    vector3f physics:gravityDirection = (0, 0, -1)
+    float physics:gravityMagnitude = 9.81
+    uniform token physxScene:broadphaseType = "MBP"
+    bool physxScene:enableCCD = 1
+    bool physxScene:enableGPUDynamics = 0
+    bool physxScene:enableStabilization = 0
+    uniform token physxScene:solverType = "TGS"
+    uint physxScene:timeStepsPerSecond = 60
+}
+
