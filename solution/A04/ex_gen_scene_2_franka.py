@@ -131,6 +131,7 @@ async def run():
         scale=np.array([0.04, 0.04, 0.2]),
         radius=0.5,
         height=1.0,
+        mass=0.1
     )
     cylinder.apply_visual_material(omnipbr, weaker_than_descendants=True)
     world.scene.add(cylinder)

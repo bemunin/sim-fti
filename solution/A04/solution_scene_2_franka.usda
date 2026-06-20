@@ -8,7 +8,7 @@
             }
             dictionary Perspective = {
                 double3 position = (1.1343990587482087, -0.3752981802075861, 0.41015109735835675)
-                double3 target = (-0.2215833279633026, 0.5913097246607015, -0.37569180520949774)
+                double3 target = (-0.22158332796330282, 0.5913097246607016, -0.37569180520949785)
             }
             dictionary Right = {
                 double3 position = (0, -5, 0)
@@ -127,6 +127,7 @@ def Xform "World"
     }
 
     def Cylinder "Cylinder" (
+        delete apiSchemas = ["PhysicsMassAPI"]
         prepend apiSchemas = ["MaterialBindingAPI", "PhysicsRigidBodyAPI", "PhysxRigidBodyAPI", "PhysicsCollisionAPI", "PhysxCollisionAPI", "PhysicsMassAPI"]
     )
     {
@@ -138,7 +139,7 @@ def Xform "World"
         )
         bool physics:collisionEnabled = 1
         bool physics:kinematicEnabled = 0
-        float physics:mass = 0.01
+        float physics:mass = 0.1
         bool physics:rigidBodyEnabled = 1
         double radius = 0.5
         custom bool refinementEnableOverride = 1
