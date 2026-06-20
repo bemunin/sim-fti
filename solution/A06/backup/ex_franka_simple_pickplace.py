@@ -7,9 +7,6 @@ from isaacsim.core.api.objects import DynamicCuboid
 from isaacsim.robot.manipulators.examples.franka import Franka
 from isaacsim.robot.manipulators.examples.franka.controllers import PickPlaceController
 
-
-
-
     
 async def run():
     # Initialize World
