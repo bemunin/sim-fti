@@ -11,16 +11,11 @@ from isaacsim.robot_motion.motion_generation import (
     LulaTaskSpaceTrajectoryGenerator,
 )
 
-# URDF link the task-space generator drives toward. Note this differs from ex_1's
-# "right_gripper": that name comes from the Lula kinematics *config*, while the
-# trajectory generator is built from the URDF and uses URDF link names.
+# URDF link the task-space generator drives toward.
 END_EFFECTOR_FRAME = "panda_hand"
+PHYSICS_DT = 1.0 / 60.0  # physics rate the action sequence is sampled at (60 Hz)
 
-# Physics rate the action sequence is sampled at (60 Hz).
-PHYSICS_DT = 1.0 / 60.0
-
-# Cartesian waypoints for the gripper: a closed rectangular loop in front of the
-# robot. The generator interpolates a smooth, time-parameterized path through them.
+# Cartesian waypoints for the gripper: a closed rectangular loop in front of the robot.
 POSITION_TARGETS = np.array(
     [
         [0.3, -0.3, 0.3],
@@ -30,11 +25,8 @@ POSITION_TARGETS = np.array(
         [0.3, -0.3, 0.3],
     ]
 )
-
-# Orientation as quaternions (w, x, y, z). [0, 1, 0, 0] is a 180 deg rotation about
-# x, pointing the gripper straight down for every waypoint.
+# Orientation quaternions (w, x, y, z); [0, 1, 0, 0] points the gripper straight down.
 ORIENTATION_TARGETS = np.tile(np.array([0, 1, 0, 0]), (len(POSITION_TARGETS), 1))
-
 
 async def get_world():
     world = World.instance()
@@ -46,17 +38,15 @@ async def get_world():
     else:
         carb.log_info("fti: World exists. Return Existing")
         carb.log_info("fti: Reset and clear everything including stage")
-        world.clear_all_callbacks()  # World API: clears scene, callbacks, and resets world state
+        world.clear_all_callbacks()  
 
     return world
-
 
 def create_franka(world):
     franka = Franka(prim_path="/World/Franka_01", name="franka")
     franka.initialize()
     world.scene.add(franka)
     return franka
-
 
 def create_trajectory_generator():
     # Config files for supported robots ship with the motion_generation extension
@@ -72,6 +62,18 @@ def create_trajectory_generator():
         urdf_path=rmp_config_dir + "/franka/lula_franka_gen.urdf",
     )
 
+def create_action_sequence(franka):
+    generator = create_trajectory_generator()
+    trajectory = generator.compute_task_space_trajectory_from_points(
+        POSITION_TARGETS, ORIENTATION_TARGETS, END_EFFECTOR_FRAME
+    )
+    if trajectory is None:
+        carb.log_warn("fti: No task-space trajectory could be computed")
+        return []
+
+    # Convert the trajectory into ArticulationActions applied one per physics step.
+    articulation_trajectory = ArticulationTrajectory(franka, trajectory, PHYSICS_DT)
+    return articulation_trajectory.get_action_sequence()
 
 def teleport_to_action(franka, action):
     # Snap the arm to the first action's joint configuration so it does not jump
@@ -81,7 +83,6 @@ def teleport_to_action(franka, action):
     franka.set_joint_positions(positions)
     franka.set_joint_velocities(np.zeros_like(positions))
 
-
 async def run():
     world = await get_world()
 
@@ -89,29 +90,20 @@ async def run():
     if franka is None:
         world.scene.add_default_ground_plane()
         franka = create_franka(world)
+        action_sequence = create_action_sequence(franka)
+        teleport_to_action(franka, create_action_sequence(franka)[0])  # snap to first pose before starting
     else:
-        franka.initialize()
-
-    generator = create_trajectory_generator()
-    trajectory = generator.compute_task_space_trajectory_from_points(
-        POSITION_TARGETS, ORIENTATION_TARGETS, END_EFFECTOR_FRAME
-    )
-    if trajectory is None:
-        carb.log_warn("fti: No task-space trajectory could be computed")
-        return
-
-    # Convert the trajectory into a sequence of ArticulationActions to be applied
-    # one per physics step at PHYSICS_DT intervals.
-    articulation_trajectory = ArticulationTrajectory(franka, trajectory, PHYSICS_DT)
-    action_sequence = articulation_trajectory.get_action_sequence()
-
+        carb.log_info("fti: Franka exists. Return Existing")
+        action_sequence = create_action_sequence(franka)
+    
     action_index = 0
 
     def physic_step(dt):
         nonlocal action_index
 
-        if action_index == 0:
-            teleport_to_action(franka, action_sequence[0])
+        if not action_sequence:
+            world.remove_physics_callback("trajectory_step")
+            return
 
         if action_index < len(action_sequence):
             franka.apply_action(action_sequence[action_index])
@@ -119,10 +111,8 @@ async def run():
         else:
             carb.log_info("fti: Task-space trajectory complete")
             world.remove_physics_callback("trajectory_step")
-            world.pause()
 
     world.add_physics_callback("trajectory_step", physic_step)
-    await world.play_async()
 
 
 asyncio.ensure_future(run())
