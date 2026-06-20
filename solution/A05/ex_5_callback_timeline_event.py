@@ -1,7 +1,7 @@
 import asyncio
 import carb
 import omni.timeline
-from omni.isaac.core import World
+from isaacsim.core.api import World
 
 
 async def get_world():

@@ -1,8 +1,8 @@
 import asyncio
 import carb
 import numpy as np
-from omni.isaac.core import World
-from omni.isaac.core.objects import DynamicCuboid
+from isaacsim.core.api import World
+from isaacsim.core.api.objects import DynamicCuboid
 
 "add | get | remove | clear"
 EXECUTION="add"
@@ -21,6 +21,13 @@ async def get_world():
 
 async def run():
     world = await get_world()
+
+    import carb
+
+    carb.log_verbose("fti: verbose message")  # most detailed, off by default
+    carb.log_info("fti: info message")
+    carb.log_warn("fti: warning message")
+    carb.log_error("fti: error message")
     
     if EXECUTION == "add":
         world.scene.add_default_ground_plane()

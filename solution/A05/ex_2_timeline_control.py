@@ -1,6 +1,6 @@
 import asyncio
 import carb
-from omni.isaac.core import World
+from isaacsim.core.api import World
 
 "reset | play | pause | stop"
 EXECUTION="play"

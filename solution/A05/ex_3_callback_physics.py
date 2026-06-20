@@ -1,8 +1,8 @@
 import asyncio
 import carb
 import numpy as np
-from omni.isaac.core import World
-from omni.isaac.core.objects import DynamicCuboid
+from isaacsim.core.api import World
+from isaacsim.core.api.objects import DynamicCuboid
 
 START_DROP_HEIGHT = 10.0 # meters
 
