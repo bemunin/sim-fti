@@ -260,6 +260,43 @@ def Xform "World"
             float physxRigidBody:sleepThreshold = 0
         }
     }
+
+    def Xform "defaultGroundPlane" (
+        prepend references = @https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/5.1/Isaac/Environments/Grid/default_environment.usd@
+    )
+    {
+        quatd xformOp:orient = (1, 0, 0, 0)
+        double3 xformOp:scale = (1, 1, 1)
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+
+        over "GroundPlane"
+        {
+            over "CollisionPlane" (
+                prepend apiSchemas = ["PhysicsMeshCollisionAPI", "PhysxCollisionAPI", "MaterialBindingAPI"]
+            )
+            {
+                rel material:binding:physics = </World/Physics_Materials/physics_material> (
+                    bindMaterialAs = "strongerThanDescendants"
+                )
+                quatd xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:translate = (0, 0, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+        }
+    }
+
+    def "Physics_Materials"
+    {
+        def Material "physics_material" (
+            prepend apiSchemas = ["PhysicsMaterialAPI"]
+        )
+        {
+            float physics:dynamicFriction = 0.5
+            float physics:restitution = 0.8
+            float physics:staticFriction = 0.5
+        }
+    }
 }
 
 def "Render" (

@@ -7,6 +7,9 @@ from isaacsim.core.api.objects import DynamicCuboid
 from isaacsim.robot.manipulators.examples.franka import Franka
 from isaacsim.robot.manipulators.examples.franka.controllers import PickPlaceController
 
+
+
+
     
 async def run():
     # Initialize World
@@ -47,6 +50,7 @@ async def run():
 
     franka.gripper.set_joint_positions(franka.gripper.joint_opened_positions)
     
+    # Execution
     def physic_step(dt):
       cube_pos, _ = world.scene.get_object("cube").get_world_pose()
       goal_pos = np.array([0.5, -0.3, 0.0515 / 2.0])

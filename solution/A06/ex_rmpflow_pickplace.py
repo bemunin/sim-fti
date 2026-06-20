@@ -7,6 +7,8 @@ import numpy as np
 from isaacsim.core.api import World
 from isaacsim.core.prims import SingleXFormPrim
 
+pickplace_pipeline = None
+
 async def get_world():
     world = World.instance()
     if world is None:
@@ -24,9 +26,13 @@ async def get_world():
         
     return world
 
+class PickPlacePipeline():
+    pass
 
 async def run():
     world = await get_world()
+    
+    
     
     # #initialize
     # if not world.scene.get_object("franka"):
