@@ -8,25 +8,22 @@ from isaacsim.core.utils.extensions import get_extension_path_from_name
 from isaacsim.robot.manipulators.examples.franka import Franka
 from isaacsim.robot_motion.motion_generation import (
     ArticulationTrajectory,
-    LulaTaskSpaceTrajectoryGenerator,
+    LulaCSpaceTrajectoryGenerator,
 )
 
-# URDF link the task-space generator drives toward.
-END_EFFECTOR_FRAME = "panda_hand"
 PHYSICS_DT = 1.0 / 60.0  # physics rate the action sequence is sampled at (60 Hz)
 
-# Cartesian waypoints for the gripper: a closed rectangular loop in front of the robot.
-POSITION_TARGETS = np.array(
+# Configuration-space waypoints for the Franka arm: joint angles (rad) for
+# panda_joint1..7, ordered as the cspace in robot_descriptor.yaml. The first and
+# last configs match the default home pose, so the arm returns where it started.
+C_SPACE_POINTS = np.array(
     [
-        [0.3, -0.3, 0.3],
-        [0.3, 0.3, 0.3],
-        [0.3, 0.3, 0.5],
-        [0.3, -0.3, 0.5],
-        [0.3, -0.3, 0.3],
+        [0.00, -1.30, 0.00, -2.87, 0.00, 2.00, 0.75],  # home / default_q
+        [0.60, -0.90, 0.30, -2.20, 0.00, 1.80, 0.75],
+        [-0.60, -1.10, -0.30, -2.40, 0.20, 2.20, 0.75],
+        [0.00, -1.30, 0.00, -2.87, 0.00, 2.00, 0.75],  # back home (closed loop)
     ]
 )
-# Orientation quaternions (w, x, y, z); [0, 1, 0, 0] points the gripper straight down.
-ORIENTATION_TARGETS = np.tile(np.array([0, 1, 0, 0]), (len(POSITION_TARGETS), 1))
 
 async def get_world():
     world = World.instance()
@@ -34,11 +31,12 @@ async def get_world():
         carb.log_info("fti: Creating new world instance")
         world = World(stage_units_in_meters=1.0)
         await world.initialize_simulation_context_async()
+        world.clear()
         await world.reset_async()
     else:
         carb.log_info("fti: World exists. Return Existing")
         carb.log_info("fti: Reset and clear everything including stage")
-        world.clear_all_callbacks()  
+        world.clear_all_callbacks()
 
     return world
 
@@ -56,7 +54,7 @@ def create_trajectory_generator():
     )
     rmp_config_dir = os.path.join(mg_extension_path, "motion_policy_configs")
 
-    return LulaTaskSpaceTrajectoryGenerator(
+    return LulaCSpaceTrajectoryGenerator(
         robot_description_path=rmp_config_dir
         + "/franka/rmpflow/robot_descriptor.yaml",
         urdf_path=rmp_config_dir + "/franka/lula_franka_gen.urdf",
@@ -64,11 +62,10 @@ def create_trajectory_generator():
 
 def create_action_sequence(franka):
     generator = create_trajectory_generator()
-    trajectory = generator.compute_task_space_trajectory_from_points(
-        POSITION_TARGETS, ORIENTATION_TARGETS, END_EFFECTOR_FRAME
-    )
+    # Time-optimal trajectory that smoothly connects the joint-space waypoints.
+    trajectory = generator.compute_c_space_trajectory(C_SPACE_POINTS)
     if trajectory is None:
-        carb.log_warn("fti: No task-space trajectory could be computed")
+        carb.log_warn("fti: No c-space trajectory could be computed")
         return []
 
     # Convert the trajectory into ArticulationActions applied one per physics step.
@@ -95,7 +92,7 @@ async def run():
     else:
         carb.log_info("fti: Franka exists. Return Existing")
         action_sequence = create_action_sequence(franka)
-    
+
     action_index = 0
 
     def physic_step(dt):
@@ -109,7 +106,7 @@ async def run():
             franka.apply_action(action_sequence[action_index])
             action_index += 1
         else:
-            carb.log_info("fti: Task-space trajectory complete")
+            carb.log_info("fti: C-space trajectory complete")
             world.remove_physics_callback("trajectory_step")
 
     world.add_physics_callback("trajectory_step", physic_step)

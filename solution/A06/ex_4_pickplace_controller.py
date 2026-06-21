@@ -16,6 +16,7 @@ async def get_world():
     if world is None:
         carb.log_info("fti: Creating new world instance")
         world = World(stage_units_in_meters=1.0)
+        world.clear()
         await world.initialize_simulation_context_async()
         await world.reset_async()
     else:

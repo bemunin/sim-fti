@@ -20,7 +20,7 @@ END_EFFECTOR_FRAME = "right_gripper"
 
 # Max joint speed (rad/s). Solved targets are rate-limited to this so the arm
 # eases toward the goal instead of snapping to it in a single step.
-MAX_JOINT_SPEED = np.deg2rad(1000.0)
+MAX_JOINT_SPEED = np.deg2rad(400.0)
 
 # Forward kinematic Config:
 
@@ -30,10 +30,11 @@ FK_JOINT_TARGET = np.array([0, -45.0, 0.0, -135.0, 0.0, 90.0, 45.0])
 
 
 # Inverse Kinematics Config
-TARGET_POSITION = np.array([0.4, 0.0, 0.4])
 # Orientation as euler angles (roll, pitch, yaw) in DEGREES; converted to a
 # quaternion in the implementation. [180, 0, 0] points the gripper straight down.
-TARGET_ORIENTATION = np.array([0, 0.0, 0.0])
+TARGET_ORIENTATION = np.array([180.0, 0.0, 0.0])
+TARGET_POSITION = np.array([0.4, 0.0, 0.6])
+
 
 async def get_world():
     world = World.instance()
@@ -81,6 +82,14 @@ def create_kinematics_solver(franka):
     return kinematics_solver, articulation_solver
 
 async def run():
+    # Ensure configured values are floats so downstream APIs (scipy, Lula) don't
+    # choke on integer dtypes.
+    global TARGET_ORIENTATION, TARGET_POSITION, MAX_JOINT_SPEED, FK_JOINT_TARGET
+    TARGET_ORIENTATION = np.asarray(TARGET_ORIENTATION, dtype=float)
+    TARGET_POSITION = np.asarray(TARGET_POSITION, dtype=float)
+    MAX_JOINT_SPEED = float(MAX_JOINT_SPEED)
+    FK_JOINT_TARGET = np.asarray(FK_JOINT_TARGET, dtype=float)
+
     world = await get_world()
 
     if EXECUTION == "clear":
@@ -109,7 +118,7 @@ async def run():
                 rate_limited_action(franka, joint_target, ARM_JOINT_INDICES, dt)
             )
             current_joints = franka.get_joint_positions()[ARM_JOINT_INDICES]
-            if np.allclose(current_joints, joint_target, atol=0.02):
+            if np.allclose(current_joints, joint_target, atol=0.001):
                 ee_position, ee_rotation = articulation_solver.compute_end_effector_pose()
                 carb.log_info(f"fti: FK end-effector position = {ee_position}")
                 carb.log_info(f"fti: FK end-effector rotation =\n{ee_rotation}")
@@ -130,7 +139,7 @@ async def run():
             )
 
             ee_position, _ = articulation_solver.compute_end_effector_pose()
-            if np.linalg.norm(ee_position - TARGET_POSITION) < 0.01:
+            if np.linalg.norm(ee_position - TARGET_POSITION) < 0.001:
                 carb.log_info("fti: IK target reached")
                 world.remove_physics_callback("kinematics_step")
 
