@@ -1,0 +1,5 @@
+FROM pow_simros_humble
+
+RUN apt-get update && apt-get install -y \
+    ros-humble-moveit-ros-perception \
+    && rm -rf /var/lib/apt/lists/*
