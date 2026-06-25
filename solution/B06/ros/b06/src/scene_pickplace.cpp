@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -224,18 +225,40 @@ void ScenePickPlace::setupPlanningScene()
   cylinder.primitive_poses.push_back(cylinder_pose);
   cylinder.operation = cylinder.ADD;
 
+  // Cube obstacle (thin vertical wall panel).
+  moveit_msgs::msg::CollisionObject cube;
+  cube.header.frame_id = mg_arm_->getPlanningFrame();
+  cube.id = "cube";
+
+  shape_msgs::msg::SolidPrimitive cube_box;
+  cube_box.type = cube_box.BOX;
+  cube_box.dimensions = { 0.05, 0.7, 0.7 };  // x (length), y (width), z (height)
+
+  geometry_msgs::msg::Pose cube_pose;
+  cube_pose.orientation.w = 1.0;
+  cube_pose.position.x = 0.2;
+  cube_pose.position.y = -0.6;
+  cube_pose.position.z = 0.35;
+
+  cube.primitives.push_back(cube_box);
+  cube.primitive_poses.push_back(cube_pose);
+  cube.operation = cube.ADD;
+
   // Apply all objects in a single batch so the scene updates atomically.
-  planning_scene_interface_.applyCollisionObjects({ ground, container, cylinder });
+  planning_scene_interface_.applyCollisionObjects({ ground, container, cylinder, cube });
 
   // Record the cylinder so timerCallback() can aim the top-down approach at it.
   cylinder_pose_ = cylinder_pose;
 
-  RCLCPP_INFO(this->get_logger(), "Planning scene initialized (added '%s', '%s', '%s')",
-              ground.id.c_str(), container.id.c_str(), cylinder.id.c_str());
+  RCLCPP_INFO(this->get_logger(), "Planning scene initialized (added '%s', '%s', '%s', '%s')",
+              ground.id.c_str(), container.id.c_str(), cylinder.id.c_str(), cube.id.c_str());
 }
 
 void ScenePickPlace::moveTo(const std::string& target)
 {
+  // Named-target moves (e.g. "ready") plan with OMPL; set it explicitly in case
+  // a prior Pilz move left another pipeline selected.
+  mg_arm_->setPlanningPipelineId("ompl");
   mg_arm_->setStartStateToCurrentState();
   bool ok = mg_arm_->setNamedTarget(target);
   if (!ok)
@@ -437,7 +460,7 @@ void ScenePickPlace::timerCallback()
     {
       // Descend straight down onto the cylinder (Pilz LIN).
       geometry_msgs::msg::Pose target = mg_arm_->getCurrentPose().pose;
-      target.position.z -= 0.11;
+      target.position.z -= 0.13;
       moveTo(target, "LIN");
       ++step_;
       break;
@@ -514,6 +537,7 @@ void ScenePickPlace::timerCallback()
       rclcpp::sleep_for(std::chrono::milliseconds(800));
       setGripper("open");
       mg_arm_->detachObject("cylinder");
+      rclcpp::sleep_for(std::chrono::milliseconds(300));
       allowCollision("cylinder", { "panda_leftfinger", "panda_rightfinger", "panda_hand" }, false);
       ++step_;
       break;
