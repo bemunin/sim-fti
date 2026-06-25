@@ -13,9 +13,11 @@ find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(shape_msgs REQUIRED)
+find_package(geometric_shapes REQUIRED)
 
-add_executable(blind_pick_place src/blind_pick_place.cpp)
-ament_target_dependencies(blind_pick_place
+add_executable(blind_pickplace src/blind_pickplace.cpp)
+ament_target_dependencies(blind_pickplace
   rclcpp
   geometry_msgs
   moveit_msgs
@@ -24,8 +26,21 @@ ament_target_dependencies(blind_pick_place
   tf2_geometry_msgs
 )
 
+add_executable(scene_pickplace src/scene_pickplace.cpp)
+ament_target_dependencies(scene_pickplace
+  rclcpp
+  geometry_msgs
+  moveit_msgs
+  moveit_ros_planning_interface
+  tf2
+  tf2_geometry_msgs
+  shape_msgs
+  geometric_shapes
+)
+
 install(TARGETS
-  blind_pick_place
+  blind_pickplace
+  scene_pickplace
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -33,6 +48,7 @@ install(DIRECTORY
   launch
   rviz2
   config
+  meshes
   DESTINATION share/${PROJECT_NAME}
 )
 
