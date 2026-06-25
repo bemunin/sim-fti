@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <vector>
 
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
@@ -32,6 +34,17 @@ private:
   // (expressed in the planning frame). planner_id selects the Pilz command:
   // "PTP" (point-to-point) or "LIN" (Cartesian straight line).
   void moveTo(const geometry_msgs::msg::Pose& target_pose, const std::string& planner_id = "PTP");
+
+  // Plan and move the EE to target_pose along a Pilz CIRC arc. aux_point is a
+  // point ON the arc (the Pilz "interim" auxiliary point), expressed in the
+  // planning frame.
+  void moveToCirc(const geometry_msgs::msg::Pose& target_pose,
+                  const geometry_msgs::msg::Point& aux_point);
+
+  // Plan and move the arm to an explicit joint-space configuration, planned
+  // with the OMPL pipeline (handles arbitrary joint goals; no Cartesian/IK
+  // requirement). joint_values must match the active joints of "panda_arm".
+  void moveToJoint(const std::vector<double>& joint_values);
 
   // Drive the gripper to a named SRDF state ("open" or "close").
   void setGripper(const std::string& state);
@@ -123,6 +136,9 @@ bool BlindPickPlace::waitForRobotState(double timeout_sec)
 void BlindPickPlace::moveTo(const std::string& target)
 {
   mg_arm_->setStartStateToCurrentState();
+  // Named SRDF poses are joint-space goals: plan point-to-point, not LIN/CIRC
+  // (a prior Cartesian planner id would otherwise carry over and abort).
+  mg_arm_->setPlannerId("PTP");
   bool ok = mg_arm_->setNamedTarget(target);
   if (!ok)
   {
@@ -155,6 +171,69 @@ void BlindPickPlace::moveTo(const geometry_msgs::msg::Pose& target_pose, const s
     RCLCPP_INFO(this->get_logger(), "Reached pose target");
   else
     RCLCPP_ERROR(this->get_logger(), "Failed to reach pose target");
+}
+
+void BlindPickPlace::moveToCirc(const geometry_msgs::msg::Pose& target_pose,
+                                const geometry_msgs::msg::Point& aux_point)
+{
+  mg_arm_->setStartStateToCurrentState();
+  mg_arm_->setPlannerId("CIRC");
+  mg_arm_->setPoseTarget(target_pose);
+
+  // Pilz CIRC requires the auxiliary point as a path constraint named "interim"
+  // (a point on the arc): exactly one position constraint, one primitive pose.
+  // See pilz trajectory_generator_circ.cpp cmdSpecificRequestValidation().
+  moveit_msgs::msg::Constraints path_constraints;
+  path_constraints.name = "interim";
+
+  moveit_msgs::msg::PositionConstraint pc;
+  pc.header.frame_id = mg_arm_->getPlanningFrame();
+  pc.link_name = mg_arm_->getEndEffectorLink();
+  pc.weight = 1.0;
+
+  geometry_msgs::msg::Pose aux_pose;
+  aux_pose.position = aux_point;
+  aux_pose.orientation.w = 1.0;
+  pc.constraint_region.primitive_poses.push_back(aux_pose);
+
+  path_constraints.position_constraints.push_back(pc);
+  mg_arm_->setPathConstraints(path_constraints);
+
+  RCLCPP_INFO(this->get_logger(),
+              "Moving to pose [%.3f, %.3f, %.3f] (CIRC, interim [%.3f, %.3f, %.3f])...",
+              target_pose.position.x, target_pose.position.y, target_pose.position.z,
+              aux_point.x, aux_point.y, aux_point.z);
+  auto result = mg_arm_->move();
+
+  mg_arm_->clearPathConstraints();  // don't leak the constraint into later moves
+
+  if (result)
+    RCLCPP_INFO(this->get_logger(), "Reached pose target");
+  else
+    RCLCPP_ERROR(this->get_logger(), "Failed to reach pose target");
+}
+
+void BlindPickPlace::moveToJoint(const std::vector<double>& joint_values)
+{
+  mg_arm_->setStartStateToCurrentState();
+
+  mg_arm_->setPlannerId("PTP");  // let OMPL pick its default planner
+
+  if (!mg_arm_->setJointValueTarget(joint_values))
+    RCLCPP_WARN(this->get_logger(),
+                "Joint target out of bounds; clamped to limits before planning");
+
+  RCLCPP_INFO(this->get_logger(), "Moving to joint target (OMPL)...");
+  auto result = mg_arm_->move();
+
+  // Restore the Pilz pipeline/PTP default for the Cartesian moves used elsewhere.
+  mg_arm_->setPlanningPipelineId("pilz_industrial_motion_planner");
+  mg_arm_->setPlannerId("PTP");
+
+  if (result)
+    RCLCPP_INFO(this->get_logger(), "Reached joint target");
+  else
+    RCLCPP_ERROR(this->get_logger(), "Failed to reach joint target");
 }
 
 void BlindPickPlace::setGripper(const std::string& state)
@@ -247,15 +326,15 @@ void BlindPickPlace::timerCallback()
 
     case 3:
     {
-      // Descend straight down 0.2 m (Cartesian LIN) to the grasp height.
       geometry_msgs::msg::Pose target = mg_arm_->getCurrentPose().pose;
-      target.position.z -= 0.12;
+      target.position.z -= 0.13;
       moveTo(target, "LIN");
       ++step_;
       break;
     }
 
     case 4:
+      rclcpp::sleep_for(std::chrono::milliseconds(500));
       // Close the gripper to grasp.
       setGripper("close");
       ++step_;
@@ -270,6 +349,60 @@ void BlindPickPlace::timerCallback()
       ++step_;
       break;
     }
+
+    case 6:
+    {
+      constexpr double kJoint1RotationDeg = 180.0;
+      const double rotation_rad = kJoint1RotationDeg * M_PI / 180.0;
+
+      std::vector<double> joints = mg_arm_->getCurrentJointValues();
+      joints[0] += rotation_rad;  // rotate panda_joint1 by kJoint1RotationDeg
+
+      // panda_joint1 soft limit is +/-2.8973 rad (~166 deg): a full 180 deg is
+      // out of range, so clamp the target to the limit (max reach toward the back).
+      constexpr double kJoint1Limit = 2.8973;
+      joints[0] = std::clamp(joints[0], -kJoint1Limit, kJoint1Limit);
+
+      moveToJoint(joints);
+      ++step_;
+      break;
+    }
+
+    case 7:
+    {
+      geometry_msgs::msg::Pose target = mg_arm_->getCurrentPose().pose;
+      target.position.z -= 0.3;
+      moveTo(target, "LIN");
+      ++step_;
+      break;
+    }
+
+    case 8:
+      rclcpp::sleep_for(std::chrono::milliseconds(1000));
+      setGripper("open");
+      ++step_;
+      break;
+
+    case 9:
+    {
+      // Retract straight up to z = 0.6 (Cartesian LIN).
+      geometry_msgs::msg::Pose target = mg_arm_->getCurrentPose().pose;
+      target.position.z = 0.6;
+      moveTo(target, "LIN");
+      ++step_;
+      break;
+    }
+
+    case 10:
+      // Return the arm to the SRDF "ready" pose.
+      moveTo("ready");
+      ++step_;
+      break;
+
+    case 11:
+      setGripper("close");
+      ++step_;
+      break;
 
     default:
       // Sequence complete; stop firing.
